@@ -2,7 +2,7 @@
   Thallium — Minecraft-Themed Placeholder README
   Built with open-source README visual components:
   - kyechan99/capsule-render (animated header & footer)
-  - DenverCoder1/readme-typing-svg (Minecraft-style splash text)
+  - Self-contained pixel-art SVG title & splash text (assets/thallium-title.svg, assets/thallium-splash.svg)
   - shields.io (for-the-badge status & stack badges)
   - tandpfun/skill-icons (tech stack icons)
 -->
@@ -15,10 +15,8 @@
 <!-- Animated Pixel-Art Title (Self-contained SVG, no external fonts required) -->
 <img src="assets/thallium-title.svg" width="680" alt="THALLIUM Pixel Art Title" />
 
-<!-- Animated Minecraft-Style Splash Text (DenverCoder1/readme-typing-svg) -->
-<a href="https://github.com/DenverCoder1/readme-typing-svg">
-  <img src="https://readme-typing-svg.demolab.com?font=Press+Start+2P&size=14&duration=3200&pause=1000&color=FFFF55&center=true&vCenter=true&width=680&height=45&lines=Now+with+100%25+more+Rust!;Crafted+block+by+block!;Placeholder+README+edition!;Redstone+powered+performance!" alt="Minecraft Splash Text" />
-</a>
+<!-- Animated Minecraft-Style Splash Text (Self-contained SVG with text-shaped black outline) -->
+<img src="assets/thallium-splash.svg" width="680" alt="Minecraft Splash Text" />
 
 <br/>
 
