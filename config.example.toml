@@ -1,0 +1,14 @@
+## note all of these are placeholder values for the time being as the project scope becomes clearer as time goes on.
+#
+
+[Thallium]
+name = "Thallium"
+environment = "testing and development"
+debug = true
+
+[server]
+host = 0
+port = 8080
+timeout_secs = 30
+max_body_size = 0
+cors_allowed_origins = []
