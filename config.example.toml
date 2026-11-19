@@ -1,14 +1,39 @@
-## note all of these are placeholder values for the time being as the project scope becomes clearer as time goes on.
-#
+# Copy this file to `config.toml` and replace the placeholder values below.
+# Environment variables (e.g. DATABASE_URL) can override sensitive settings.
 
-[Thallium]
+[thallium]
 name = "Thallium"
-environment = "testing and development"
+environment = "development"
 debug = true
 
-[server]
-host = 0
-port = 8080
-timeout_secs = 30
-max_body_size = 0
-cors_allowed_origins = []
+[minecraft]
+# Address for off-server Server List Ping (SLP).
+# Use "127.0.0.1" for a local server, or your server's LAN/Tailscale hostname.
+host = "127.0.0.1"
+port = 25565
+ping_timeout_secs = 5
+
+# Path to the world's player NBT directory:
+# - Minecraft 26.3+: /path/to/world/players/data
+# - Older versions:  /path/to/world/playerdata
+playerdata_dir = "<insert path to world/players/data here!>"
+
+# Optional: path to usercache.json for resolving player UUIDs to usernames
+usercache_path = "<insert path to usercache.json here!>"
+
+[state_machine]
+# How often to ping the Minecraft server for online player count
+poll_interval_secs = 15
+
+# Brief delay after detecting 0 players before reading .dat files,
+# giving the server time to finish flushing playerdata to disk.
+drain_delay_secs = 2
+
+[storage]
+# Local directory mimicking S3/R2 buckets
+storage_root = "<insert storage root directory here!>"
+bucket = "playerdata"
+
+[database]
+# Postgres connection string (override with DATABASE_URL in production)
+database_url = "<insert postgres://user:password@localhost:5432/thallium here!>"
