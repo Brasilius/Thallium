@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  pr-title:
+    name: Conventional PR Title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+
+          title = os.environ.get("PR_TITLE", "").strip()
+          body = os.environ.get("PR_BODY", "")
+          pattern = re.compile(
+              r"^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([a-zA-Z0-9._/-]+\))?(!)?: .+"
+          )
+          m = pattern.match(title)
+          if not m:
+              print(f"Invalid PR title: {title!r}", file=sys.stderr)
+              print(
+                  "Expected Conventional Commit format, e.g.:\n"
+                  "  fix: handle edge case        -> bumps patch (0.0.x)\n"
+                  "  feat: add new command        -> bumps minor (0.x.0)\n"
+                  "  feat!: redesign config       -> bumps major (x.0.0)",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          kind, _, breaking = m.groups()
+          if breaking == "!" or re.search(r"^BREAKING[ -]CHANGE:", body, re.MULTILINE):
+              bump = "major (x.0.0)"
+          elif kind == "feat":
+              bump = "minor (0.x.0)"
+          else:
+              bump = "patch (0.0.x)"
+
+          print(f"Valid PR title: {title!r} -> will trigger {bump} bump on merge.")
+          PY
+
+  lint:
+    name: Format & Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test --all-targets --all-features
