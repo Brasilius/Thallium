@@ -68,14 +68,11 @@ impl FromStr for Environment {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ThalliumConfig {
-    /// Display name for this Thallium instance.
-    /// (config.local.toml: uses default "Thallium")
+    /// Display name for this Thallium instance (default: `"Thallium"`).
     pub name: String,
-    /// Runtime environment (`development`, `staging`, `production`).
-    /// (config.local.toml: uses default "development")
+    /// Runtime environment (`development`, `staging`, `production`; default: `development`).
     pub environment: Environment,
-    /// Enables verbose debug logging/diagnostics.
-    /// (config.local.toml: personally overridden to `true`; default is `false`)
+    /// Enables verbose debug logging/diagnostics (default: `false`; typically overridden to `true` locally).
     pub debug: bool,
 }
 
@@ -131,7 +128,7 @@ impl TryFrom<String> for ServerHost {
             return Ok(Self(value));
         }
 
-        // Otherwise validate as a DNS / Tailscale MagicDNS hostname (e.g. "styx" or "styx.tailnet.ts.net").
+        // Otherwise validate as a DNS / Tailscale MagicDNS hostname (e.g. "smp-node" or "smp-node.tailnet.ts.net").
         if value.contains(':') {
             return Err(format!(
                 "host '{value}' appears to include a port; set `minecraft.port` separately"
@@ -318,22 +315,19 @@ impl TryFrom<String> for DatabaseUrl {
 #[serde(deny_unknown_fields)]
 pub struct MinecraftConfig {
     /// Target hostname or IP for off-server Server List Ping (SLP).
-    /// (config.local.toml: personally set to `"styx"` for Tailscale MagicDNS + socat; default is `"127.0.0.1"`)
+    /// Supports IPv4/IPv6, FQDNs, and short Tailscale MagicDNS hostnames (default: `"127.0.0.1"`).
     #[serde(default = "default_host")]
     pub host: ServerHost,
-    /// Target TCP port for SLP (non-zero).
-    /// (config.local.toml: uses default `25565`)
+    /// Target TCP port for SLP (non-zero; default: `25565`).
     #[serde(default = "default_port")]
     pub port: NonZeroU16,
-    /// Timeout in seconds for each SLP TCP handshake/status exchange (must be < `poll_interval_secs`).
-    /// (config.local.toml: uses default `5`)
+    /// Timeout in seconds for each SLP TCP handshake/status exchange (must be < `poll_interval_secs`; default: `5`).
     #[serde(default = "default_ping_timeout_secs")]
     pub ping_timeout_secs: NonZeroU64,
-    /// Directory containing `<uuid>.dat` player NBT files.
-    /// (config.local.toml: required & personally set to `"/home/leo/projects/mc-server/data/world/players/data"` for MC 26.3)
+    /// Required directory containing `<uuid>.dat` player NBT files
+    /// (e.g., `world/players/data` on Minecraft 26.3+ or `world/playerdata` on older versions).
     pub playerdata_dir: ValidatedPath,
     /// Optional path to `usercache.json` for resolving player UUIDs to usernames.
-    /// (config.local.toml: optional, personally set to `"/home/leo/projects/mc-server/data/usercache.json"`)
     #[serde(default)]
     pub usercache_path: Option<ValidatedPath>,
 }
@@ -357,11 +351,9 @@ impl MinecraftConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct StateMachineConfig {
-    /// Interval in seconds between SLP status polls (must be > `ping_timeout_secs`).
-    /// (config.local.toml: uses default `15`)
+    /// Interval in seconds between SLP status polls (must be > `ping_timeout_secs`; default: `15`).
     pub poll_interval_secs: NonZeroU64,
-    /// Delay in seconds after detecting 0 players before reading `.dat` files so the server finishes flushing.
-    /// (config.local.toml: uses default `2`)
+    /// Delay in seconds after detecting 0 players before reading `.dat` files so the server finishes flushing (default: `2`).
     pub drain_delay_secs: u64,
 }
 
@@ -388,11 +380,9 @@ impl StateMachineConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StorageConfig {
-    /// Root directory under which bucket folders are created.
-    /// (config.local.toml: required & personally set to `"./buckets"`)
+    /// Required root directory under which bucket folders are created (relative or absolute).
     pub storage_root: ValidatedPath,
-    /// Bucket name for playerdata snapshots.
-    /// (config.local.toml: personally customized to `"styx-playerdata"`; default is `"playerdata"`)
+    /// S3/R2-compatible bucket name for playerdata snapshots (default: `"playerdata"`).
     #[serde(default = "default_bucket")]
     pub bucket: BucketName,
 }
@@ -408,8 +398,7 @@ impl StorageConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DatabaseConfig {
-    /// Postgres connection URI (overridable via `DATABASE_URL` env var).
-    /// (config.local.toml: required & personally set to local Postgres `"postgres://thallium:...@localhost:5432/thallium"`)
+    /// Required Postgres connection URI (overridable via the `DATABASE_URL` environment variable).
     pub database_url: DatabaseUrl,
 }
 
@@ -609,18 +598,18 @@ fn parse_env_bool(raw: &str) -> Option<bool> {
 mod tests {
     use super::*;
 
-    const STYX_LOCAL_TOML: &str = r#"
+    const SAMPLE_CONFIG_TOML: &str = r#"
 [thallium]
 name = "Thallium"
 environment = "development"
 debug = true
 
 [minecraft]
-host = "styx"
+host = "smp-node"
 port = 25565
 ping_timeout_secs = 5
-playerdata_dir = "/home/leo/projects/mc-server/data/world/players/data"
-usercache_path = "/home/leo/projects/mc-server/data/usercache.json"
+playerdata_dir = "/srv/minecraft/world/players/data"
+usercache_path = "/srv/minecraft/usercache.json"
 
 [state_machine]
 poll_interval_secs = 15
@@ -628,51 +617,41 @@ drain_delay_secs = 2
 
 [storage]
 storage_root = "./buckets"
-bucket = "styx-playerdata"
+bucket = "smp-playerdata"
 
 [database]
 database_url = "postgres://thallium:changeme@localhost:5432/thallium"
 "#;
 
     #[test]
-    fn parses_styx_local_configuration() {
-        let cfg = Config::from_toml_str(STYX_LOCAL_TOML).expect("valid styx config");
+    fn parses_full_configuration() {
+        let cfg = Config::from_toml_str(SAMPLE_CONFIG_TOML).expect("valid sample config");
         assert_eq!(cfg.thallium.name, "Thallium");
         assert_eq!(cfg.thallium.environment, Environment::Development);
         assert!(cfg.thallium.debug);
-        assert_eq!(cfg.minecraft.host.as_str(), "styx");
+        assert_eq!(cfg.minecraft.host.as_str(), "smp-node");
         assert_eq!(cfg.minecraft.port.get(), 25565);
-        assert_eq!(cfg.minecraft.socket_addr(), "styx:25565");
+        assert_eq!(cfg.minecraft.socket_addr(), "smp-node:25565");
         assert_eq!(cfg.minecraft.ping_timeout(), Duration::from_secs(5));
         assert_eq!(
             cfg.minecraft.playerdata_dir.as_path(),
-            Path::new("/home/leo/projects/mc-server/data/world/players/data")
+            Path::new("/srv/minecraft/world/players/data")
         );
         assert_eq!(
             cfg.minecraft.usercache_path.as_deref(),
-            Some(Path::new("/home/leo/projects/mc-server/data/usercache.json"))
+            Some(Path::new("/srv/minecraft/usercache.json"))
         );
         assert_eq!(cfg.state_machine.poll_interval(), Duration::from_secs(15));
         assert_eq!(cfg.state_machine.drain_delay(), Duration::from_secs(2));
-        assert_eq!(cfg.storage.bucket.as_str(), "styx-playerdata");
+        assert_eq!(cfg.storage.bucket.as_str(), "smp-playerdata");
         assert_eq!(
             cfg.storage.bucket_path(),
-            PathBuf::from("./buckets/styx-playerdata")
+            PathBuf::from("./buckets/smp-playerdata")
         );
         assert_eq!(
             cfg.database.database_url.expose_secret(),
             "postgres://thallium:changeme@localhost:5432/thallium"
         );
-    }
-
-    #[test]
-    fn loads_workspace_config_local_toml_if_present() {
-        let path = Path::new("config.local.toml");
-        if path.exists() {
-            let cfg = Config::from_path(path).expect("workspace config.local.toml should parse");
-            assert_eq!(cfg.minecraft.host.as_str(), "styx");
-            assert_eq!(cfg.storage.bucket.as_str(), "styx-playerdata");
-        }
     }
 
     #[test]
@@ -686,7 +665,7 @@ database_url = "postgres://thallium:changeme@localhost:5432/thallium"
     fn applies_defaults_for_omitted_optional_fields() {
         let minimal = r#"
 [minecraft]
-playerdata_dir = "/srv/mc/world/players/data"
+playerdata_dir = "/srv/minecraft/world/players/data"
 
 [storage]
 storage_root = "/var/lib/thallium/buckets"
@@ -709,7 +688,7 @@ database_url = "postgresql://localhost:5432/thallium"
 
     #[test]
     fn redacts_database_credentials_in_debug_output() {
-        let cfg = Config::from_toml_str(STYX_LOCAL_TOML).unwrap();
+        let cfg = Config::from_toml_str(SAMPLE_CONFIG_TOML).unwrap();
         let debug_str = format!("{cfg:?}");
         assert!(
             !debug_str.contains("changeme"),
@@ -720,21 +699,22 @@ database_url = "postgresql://localhost:5432/thallium"
 
     #[test]
     fn rejects_zero_port_and_zero_timers() {
-        let zero_port = STYX_LOCAL_TOML.replace("port = 25565", "port = 0");
+        let zero_port = SAMPLE_CONFIG_TOML.replace("port = 25565", "port = 0");
         assert!(Config::from_toml_str(&zero_port).is_err());
 
         let zero_poll =
-            STYX_LOCAL_TOML.replace("poll_interval_secs = 15", "poll_interval_secs = 0");
+            SAMPLE_CONFIG_TOML.replace("poll_interval_secs = 15", "poll_interval_secs = 0");
         assert!(Config::from_toml_str(&zero_poll).is_err());
 
         let zero_timeout =
-            STYX_LOCAL_TOML.replace("ping_timeout_secs = 5", "ping_timeout_secs = 0");
+            SAMPLE_CONFIG_TOML.replace("ping_timeout_secs = 5", "ping_timeout_secs = 0");
         assert!(Config::from_toml_str(&zero_timeout).is_err());
     }
 
     #[test]
     fn rejects_ping_timeout_gte_poll_interval() {
-        let overlapping = STYX_LOCAL_TOML.replace("ping_timeout_secs = 5", "ping_timeout_secs = 15");
+        let overlapping =
+            SAMPLE_CONFIG_TOML.replace("ping_timeout_secs = 5", "ping_timeout_secs = 15");
         let err = Config::from_toml_str(&overlapping).expect_err("overlapping poll must fail");
         assert!(matches!(
             err,
@@ -745,7 +725,7 @@ database_url = "postgresql://localhost:5432/thallium"
     #[test]
     fn rejects_bucket_path_traversal_and_invalid_names() {
         for bad in ["../escape", "a/b", "UPPER", "ab", "-leading", "trailing-"] {
-            let raw = STYX_LOCAL_TOML.replace("styx-playerdata", bad);
+            let raw = SAMPLE_CONFIG_TOML.replace("smp-playerdata", bad);
             assert!(
                 Config::from_toml_str(&raw).is_err(),
                 "bucket '{bad}' should have been rejected"
@@ -755,34 +735,44 @@ database_url = "postgresql://localhost:5432/thallium"
 
     #[test]
     fn validates_hosts_and_brackets_ipv6() {
-        for bad in ["styx:25565", "http://styx", "", "bad host", "-styx", "styx..ts"] {
-            let raw = STYX_LOCAL_TOML.replace(r#"host = "styx""#, &format!(r#"host = "{bad}""#));
+        for bad in [
+            "smp-node:25565",
+            "http://smp-node",
+            "",
+            "bad host",
+            "-smp-node",
+            "smp-node..ts",
+        ] {
+            let raw =
+                SAMPLE_CONFIG_TOML.replace(r#"host = "smp-node""#, &format!(r#"host = "{bad}""#));
             assert!(
                 Config::from_toml_str(&raw).is_err(),
                 "host '{bad}' should have been rejected"
             );
         }
 
-        let ipv6 = STYX_LOCAL_TOML.replace(r#"host = "styx""#, r#"host = "::1""#);
+        let ipv6 = SAMPLE_CONFIG_TOML.replace(r#"host = "smp-node""#, r#"host = "::1""#);
         let cfg = Config::from_toml_str(&ipv6).expect("IPv6 host should be accepted");
         assert_eq!(cfg.minecraft.socket_addr(), "[::1]:25565");
 
-        let tailnet =
-            STYX_LOCAL_TOML.replace(r#"host = "styx""#, r#"host = "styx.tail12345.ts.net""#);
+        let tailnet = SAMPLE_CONFIG_TOML.replace(
+            r#"host = "smp-node""#,
+            r#"host = "smp-node.tail12345.ts.net""#,
+        );
         let cfg = Config::from_toml_str(&tailnet).expect("Tailscale FQDN should be accepted");
-        assert_eq!(cfg.minecraft.socket_addr(), "styx.tail12345.ts.net:25565");
+        assert_eq!(cfg.minecraft.socket_addr(), "smp-node.tail12345.ts.net:25565");
     }
 
     #[test]
     fn rejects_unknown_toml_fields() {
-        let typo = STYX_LOCAL_TOML.replace("poll_interval_secs = 15", "poll_interval_sec = 15");
+        let typo = SAMPLE_CONFIG_TOML.replace("poll_interval_secs = 15", "poll_interval_sec = 15");
         assert!(Config::from_toml_str(&typo).is_err());
     }
 
     #[test]
     fn rejects_placeholder_in_optional_usercache_path() {
-        let raw = STYX_LOCAL_TOML.replace(
-            "/home/leo/projects/mc-server/data/usercache.json",
+        let raw = SAMPLE_CONFIG_TOML.replace(
+            "/srv/minecraft/usercache.json",
             "<insert path to usercache.json here!>",
         );
         assert!(Config::from_toml_str(&raw).is_err());
@@ -790,7 +780,7 @@ database_url = "postgresql://localhost:5432/thallium"
 
     #[test]
     fn rejects_non_postgres_database_url() {
-        let raw = STYX_LOCAL_TOML.replace(
+        let raw = SAMPLE_CONFIG_TOML.replace(
             "postgres://thallium:changeme@localhost:5432/thallium",
             "mysql://root:pw@localhost:3306/thallium",
         );
@@ -799,8 +789,10 @@ database_url = "postgresql://localhost:5432/thallium"
 
     #[test]
     fn applies_and_validates_env_overrides() {
-        let cfg = Config::from_toml_str_with_env(STYX_LOCAL_TOML, |key| match key {
-            "DATABASE_URL" => Some("postgresql://prod:secret@db.internal:5432/thallium".to_string()),
+        let cfg = Config::from_toml_str_with_env(SAMPLE_CONFIG_TOML, |key| match key {
+            "DATABASE_URL" => {
+                Some("postgresql://prod:secret@db.internal:5432/thallium".to_string())
+            }
             "THALLIUM_ENV" => Some("production".to_string()),
             "THALLIUM_DEBUG" => Some("false".to_string()),
             _ => None,
@@ -814,7 +806,7 @@ database_url = "postgresql://localhost:5432/thallium"
             "postgresql://prod:secret@db.internal:5432/thallium"
         );
 
-        let bad_env = Config::from_toml_str_with_env(STYX_LOCAL_TOML, |key| match key {
+        let bad_env = Config::from_toml_str_with_env(SAMPLE_CONFIG_TOML, |key| match key {
             "THALLIUM_ENV" => Some("prodcution".to_string()),
             _ => None,
         });
@@ -823,7 +815,7 @@ database_url = "postgresql://localhost:5432/thallium"
             Err(ThalliumError::ConfigValidation { field, .. }) if field == "THALLIUM_ENV"
         ));
 
-        let bad_debug = Config::from_toml_str_with_env(STYX_LOCAL_TOML, |key| match key {
+        let bad_debug = Config::from_toml_str_with_env(SAMPLE_CONFIG_TOML, |key| match key {
             "THALLIUM_DEBUG" => Some("maybe".to_string()),
             _ => None,
         });
@@ -835,9 +827,9 @@ database_url = "postgresql://localhost:5432/thallium"
 
     #[test]
     fn rejects_storage_root_matching_playerdata_dir() {
-        let raw = STYX_LOCAL_TOML.replace(
+        let raw = SAMPLE_CONFIG_TOML.replace(
             r#"storage_root = "./buckets""#,
-            r#"storage_root = "/home/leo/projects/mc-server/data/world/players/data""#,
+            r#"storage_root = "/srv/minecraft/world/players/data""#,
         );
         let err = Config::from_toml_str(&raw).expect_err("overlapping dirs must fail");
         assert!(matches!(
