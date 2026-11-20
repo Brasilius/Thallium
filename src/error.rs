@@ -77,6 +77,9 @@ pub enum ThalliumError {
     #[error("Configuration TOML parse failure: {0}")]
     TomlParse(#[from] toml::de::Error),
 
+    #[error("Configuration validation failed for '{field}': {reason}")]
+    ConfigValidation { field: String, reason: String },
+
     #[error("JSON serialization/deserialization failure: {0}")]
     Json(#[from] serde_json::Error),
 
