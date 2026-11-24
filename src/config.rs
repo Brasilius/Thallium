@@ -114,13 +114,20 @@ impl TryFrom<String> for ServerHost {
 
     fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
         if value.is_empty() || value.trim() != value {
-            return Err("host must be non-empty without leading or trailing whitespace".to_string());
+            return Err(
+                "host must be non-empty without leading or trailing whitespace".to_string(),
+            );
         }
         if value.contains("<insert") {
             return Err("host still contains an unreplaced placeholder".to_string());
         }
-        if value.contains("://") || value.contains('/') || value.chars().any(|c| c.is_whitespace() || c.is_control()) {
-            return Err(format!("host '{value}' must be a bare hostname or IP address without scheme or whitespace"));
+        if value.contains("://")
+            || value.contains('/')
+            || value.chars().any(|c| c.is_whitespace() || c.is_control())
+        {
+            return Err(format!(
+                "host '{value}' must be a bare hostname or IP address without scheme or whitespace"
+            ));
         }
 
         // Accept valid IPv4 or IPv6 addresses directly.
@@ -142,10 +149,17 @@ impl TryFrom<String> for ServerHost {
                 return Err(format!("invalid hostname label in '{value}'"));
             }
             if label.starts_with('-') || label.ends_with('-') {
-                return Err(format!("hostname label '{label}' cannot start or end with '-'"));
+                return Err(format!(
+                    "hostname label '{label}' cannot start or end with '-'"
+                ));
             }
-            if !label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
-                return Err(format!("hostname label '{label}' contains invalid characters"));
+            if !label
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            {
+                return Err(format!(
+                    "hostname label '{label}' contains invalid characters"
+                ));
             }
         }
 
@@ -275,7 +289,9 @@ impl DatabaseUrl {
 
 impl fmt::Debug for DatabaseUrl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("DatabaseUrl").field(&self.redacted()).finish()
+        f.debug_tuple("DatabaseUrl")
+            .field(&self.redacted())
+            .finish()
     }
 }
 
@@ -284,7 +300,9 @@ impl TryFrom<String> for DatabaseUrl {
 
     fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
         if value.is_empty() || value.trim() != value {
-            return Err("database_url must be non-empty without leading or trailing whitespace".to_string());
+            return Err(
+                "database_url must be non-empty without leading or trailing whitespace".to_string(),
+            );
         }
         if value.contains("<insert") {
             return Err("database_url still contains an unreplaced placeholder".to_string());
@@ -504,32 +522,33 @@ impl Config {
         if let Some(raw_url) = env_get("DATABASE_URL")
             && !raw_url.trim().is_empty()
         {
-            self.database.database_url =
-                DatabaseUrl::try_from(raw_url).map_err(|reason| ThalliumError::ConfigValidation {
+            self.database.database_url = DatabaseUrl::try_from(raw_url).map_err(|reason| {
+                ThalliumError::ConfigValidation {
                     field: "DATABASE_URL".to_string(),
                     reason,
-                })?;
+                }
+            })?;
         }
 
         if let Some(raw_env) = env_get("THALLIUM_ENV")
             && !raw_env.trim().is_empty()
         {
-            self.thallium.environment =
-                raw_env.parse::<Environment>().map_err(|reason| ThalliumError::ConfigValidation {
+            self.thallium.environment = raw_env.parse::<Environment>().map_err(|reason| {
+                ThalliumError::ConfigValidation {
                     field: "THALLIUM_ENV".to_string(),
                     reason,
-                })?;
+                }
+            })?;
         }
 
         if let Some(raw_debug) = env_get("THALLIUM_DEBUG")
             && !raw_debug.trim().is_empty()
         {
-            self.thallium.debug = parse_env_bool(&raw_debug).ok_or_else(|| {
-                ThalliumError::ConfigValidation {
+            self.thallium.debug =
+                parse_env_bool(&raw_debug).ok_or_else(|| ThalliumError::ConfigValidation {
                     field: "THALLIUM_DEBUG".to_string(),
                     reason: format!("invalid boolean '{raw_debug}'; expected true/false or 1/0"),
-                }
-            })?;
+                })?;
         }
 
         Ok(())
@@ -760,7 +779,10 @@ database_url = "postgresql://localhost:5432/thallium"
             r#"host = "smp-node.tail12345.ts.net""#,
         );
         let cfg = Config::from_toml_str(&tailnet).expect("Tailscale FQDN should be accepted");
-        assert_eq!(cfg.minecraft.socket_addr(), "smp-node.tail12345.ts.net:25565");
+        assert_eq!(
+            cfg.minecraft.socket_addr(),
+            "smp-node.tail12345.ts.net:25565"
+        );
     }
 
     #[test]
